@@ -1,6 +1,8 @@
 import { RespostaTMDB, Filme } from "@/types/tmdb";
 import CardFilme from "@/components/CardFilme";
 
+export const dynamic = "force-dynamic";
+
 async function buscarFilmes(): Promise<Filme[]> {
   try {
     const res = await fetch(
