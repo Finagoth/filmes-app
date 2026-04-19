@@ -40,7 +40,10 @@ export default function CardFilme({ filme }: Props) {
         </div>
 
         {/* Info */}
-        <div className="p-3">
+        <div
+          className="p-3 flex flex-col justify-between"
+          style={{ minHeight: "72px" }}
+        >
           <h2 className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2">
             {filme.title}
           </h2>
