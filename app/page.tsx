@@ -2,12 +2,17 @@ import { RespostaTMDB, Filme } from "@/types/tmdb";
 import CardFilme from "@/components/CardFilme";
 
 async function buscarFilmes(): Promise<Filme[]> {
-  const res = await fetch(
-    `https://api.themoviedb.org/3/movie/now_playing?api_key=${process.env.NEXT_PUBLIC_TMDB_KEY}&language=pt-BR`,
-    { next: { revalidate: 3600 } },
-  );
-  const dados: RespostaTMDB = await res.json();
-  return dados.results;
+  try {
+    const res = await fetch(
+      `https://api.themoviedb.org/3/movie/now_playing?api_key=${process.env.NEXT_PUBLIC_TMDB_KEY}&language=pt-BR`,
+      { next: { revalidate: 3600 } },
+    );
+    if (!res.ok) return [];
+    const dados: RespostaTMDB = await res.json();
+    return dados.results ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export default async function Home() {
@@ -20,11 +25,15 @@ export default async function Home() {
         Filmes atualmente nos cinemas
       </p>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
-        {filmes.map((filme) => (
-          <CardFilme key={filme.id} filme={filme} />
-        ))}
-      </div>
+      {filmes.length === 0 ? (
+        <p className="text-gray-400">Não foi possível carregar os filmes.</p>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
+          {filmes.map((filme) => (
+            <CardFilme key={filme.id} filme={filme} />
+          ))}
+        </div>
+      )}
     </main>
   );
 }
