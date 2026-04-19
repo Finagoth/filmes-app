@@ -8,7 +8,8 @@ Catálogo de filmes em cartaz nos cinemas, desenvolvido com Next.js 16, TypeScri
 
 ## 📸 Screenshots
 
-> Adicione prints aqui depois (veja instruções abaixo)
+![Página inicial](public/fotoTelaInicial.jpg)
+![Página de detalhes](public/telaDetalhes.jpg)
 
 ## ✨ Funcionalidades
 
