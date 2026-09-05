@@ -1,45 +1,63 @@
-import Image from "next/image";
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { Filme } from "@/types/tmdb";
+import Image from 'next/image'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import type { Metadata } from 'next'
+import { Filme } from '@/types/tmdb'
+import BotaoFavorito from '@/components/BotaoFavorito'
+import FilmesSimilares from '@/components/FilmesSimilares'
 
 interface Props {
-  params: Promise<{ movieId: string }>;
+  params: Promise<{ movieId: string }>
 }
 
 async function buscarFilme(id: string): Promise<Filme> {
   const res = await fetch(
-    `https://api.themoviedb.org/3/movie/${id}?api_key=${process.env.NEXT_PUBLIC_TMDB_KEY}&language=pt-BR`,
-  );
-  if (!res.ok) notFound();
-  return res.json();
+    `https://api.themoviedb.org/3/movie/${id}?api_key=${process.env.NEXT_PUBLIC_TMDB_KEY}&language=pt-BR`
+  )
+  if (!res.ok) notFound()
+  return res.json()
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { movieId } = await params
+  const filme = await buscarFilme(movieId)
+  return {
+    title: `${filme.title} | FilmesApp`,
+    description: filme.overview || `Detalhes sobre ${filme.title}`,
+    openGraph: {
+      title: filme.title,
+      description: filme.overview,
+      images: filme.backdrop_path
+        ? [`https://image.tmdb.org/t/p/w1280${filme.backdrop_path}`]
+        : [],
+    },
+  }
 }
 
 function formatarDuracao(minutos: number): string {
-  const h = Math.floor(minutos / 60);
-  const min = minutos % 60;
-  return h > 0 ? `${h}h ${min}min` : `${min}min`;
+  const h = Math.floor(minutos / 60)
+  const min = minutos % 60
+  return h > 0 ? `${h}h ${min}min` : `${min}min`
 }
 
 export default async function PaginaFilme({ params }: Props) {
-  const { movieId } = await params;
-  const filme = await buscarFilme(movieId);
+  const { movieId } = await params
+  const filme = await buscarFilme(movieId)
 
   const urlBanner = filme.backdrop_path
     ? `https://image.tmdb.org/t/p/original${filme.backdrop_path}`
-    : null;
+    : null
 
   const urlPoster = filme.poster_path
     ? `https://image.tmdb.org/t/p/w500${filme.poster_path}`
-    : null;
+    : null
 
-  const ano = filme.release_date ? filme.release_date.slice(0, 4) : "N/A";
-  const nota = filme.vote_average ? filme.vote_average.toFixed(1) : "N/A";
-  const duracao = filme.runtime ? formatarDuracao(filme.runtime) : null;
+  const ano = filme.release_date ? filme.release_date.slice(0, 4) : 'N/A'
+  const nota = filme.vote_average ? filme.vote_average.toFixed(1) : 'N/A'
+  const duracao = filme.runtime ? formatarDuracao(filme.runtime) : null
 
   return (
     <main>
-      {/* Banner */}
       <div className="relative w-full h-72 md:h-96 bg-gray-900">
         {urlBanner ? (
           <Image
@@ -56,9 +74,7 @@ export default async function PaginaFilme({ params }: Props) {
         <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent" />
       </div>
 
-      {/* Conteúdo */}
       <div className="max-w-4xl mx-auto px-6 py-8 flex flex-col md:flex-row gap-8">
-        {/* Poster ou placeholder */}
         <div className="relative w-40 h-60 md:w-52 md:h-80 flex-shrink-0 rounded-xl overflow-hidden shadow-xl -mt-20 z-10 border-4 border-white bg-gray-200">
           {urlPoster ? (
             <Image
@@ -76,21 +92,12 @@ export default async function PaginaFilme({ params }: Props) {
           )}
         </div>
 
-        {/* Informações */}
         <div className="flex flex-col gap-3 mt-2">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
-            {filme.title}
-          </h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900">{filme.title}</h1>
 
-          {/* Meta: ano, duração, nota */}
           <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
             <span>{ano}</span>
-            {duracao && (
-              <>
-                <span>·</span>
-                <span>{duracao}</span>
-              </>
-            )}
+            {duracao && <><span>·</span><span>{duracao}</span></>}
             <span>·</span>
             <span className="flex items-center gap-1">
               <span className="text-yellow-400">★</span>
@@ -99,10 +106,9 @@ export default async function PaginaFilme({ params }: Props) {
             </span>
           </div>
 
-          {/* Gêneros */}
           {filme.genres && filme.genres.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              {filme.genres.map((genero) => (
+              {filme.genres.map(genero => (
                 <span
                   key={genero.id}
                   className="bg-gray-100 text-gray-700 text-xs font-medium px-3 py-1 rounded-full border border-gray-200"
@@ -113,25 +119,25 @@ export default async function PaginaFilme({ params }: Props) {
             </div>
           )}
 
-          {/* Sinopse */}
           {filme.overview ? (
-            <p className="text-gray-700 leading-relaxed text-base mt-2 max-w-2xl">
-              {filme.overview}
-            </p>
+            <p className="text-gray-700 leading-relaxed text-base mt-2 max-w-2xl">{filme.overview}</p>
           ) : (
-            <p className="text-gray-400 italic">
-              Sinopse não disponível em português.
-            </p>
+            <p className="text-gray-400 italic">Sinopse não disponível em português.</p>
           )}
 
-          <Link
-            href="/"
-            className="mt-4 self-start text-sm text-blue-600 hover:underline flex items-center gap-1"
-          >
-            ← Voltar ao catálogo
-          </Link>
+          <div className="flex flex-wrap gap-3 mt-2">
+            <BotaoFavorito filme={filme} />
+            <Link
+              href="/"
+              className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm text-gray-600 border border-gray-200 hover:border-gray-400 transition-colors bg-white"
+            >
+              ← Voltar ao catálogo
+            </Link>
+          </div>
         </div>
       </div>
+
+      <FilmesSimilares filmeId={Number(movieId)} />
     </main>
-  );
+  )
 }
