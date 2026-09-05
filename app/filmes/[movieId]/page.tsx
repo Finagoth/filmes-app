@@ -3,8 +3,10 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { Filme } from '@/types/tmdb'
-import BotaoFavorito from '@/components/BotaoFavorito'
+import BotoesListas from '@/components/BotoesListas'
 import FilmesSimilares from '@/components/FilmesSimilares'
+import ElencoFilme from '@/components/ElencoFilme'
+import TrailerFilme from '@/components/TrailerFilme'
 
 interface Props {
   params: Promise<{ movieId: string }>
@@ -47,43 +49,30 @@ export default async function PaginaFilme({ params }: Props) {
   const urlBanner = filme.backdrop_path
     ? `https://image.tmdb.org/t/p/original${filme.backdrop_path}`
     : null
-
   const urlPoster = filme.poster_path
     ? `https://image.tmdb.org/t/p/w500${filme.poster_path}`
     : null
-
   const ano = filme.release_date ? filme.release_date.slice(0, 4) : 'N/A'
   const nota = filme.vote_average ? filme.vote_average.toFixed(1) : 'N/A'
   const duracao = filme.runtime ? formatarDuracao(filme.runtime) : null
 
   return (
     <main>
+      {/* Banner */}
       <div className="relative w-full h-72 md:h-96 bg-gray-900">
         {urlBanner ? (
-          <Image
-            src={urlBanner}
-            alt={filme.title}
-            fill
-            sizes="100vw"
-            className="object-cover opacity-60"
-            priority
-          />
+          <Image src={urlBanner} alt={filme.title} fill sizes="100vw" className="object-cover opacity-60" priority />
         ) : (
           <div className="w-full h-full bg-gray-800" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent" />
       </div>
 
+      {/* Info principal */}
       <div className="max-w-4xl mx-auto px-6 py-8 flex flex-col md:flex-row gap-8">
         <div className="relative w-40 h-60 md:w-52 md:h-80 flex-shrink-0 rounded-xl overflow-hidden shadow-xl -mt-20 z-10 border-4 border-white bg-gray-200">
           {urlPoster ? (
-            <Image
-              src={urlPoster}
-              alt={`Poster de ${filme.title}`}
-              fill
-              sizes="208px"
-              className="object-cover"
-            />
+            <Image src={urlPoster} alt={`Poster de ${filme.title}`} fill sizes="208px" className="object-cover" />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-gray-400">
               <span className="text-4xl">🎬</span>
@@ -109,10 +98,7 @@ export default async function PaginaFilme({ params }: Props) {
           {filme.genres && filme.genres.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {filme.genres.map(genero => (
-                <span
-                  key={genero.id}
-                  className="bg-gray-100 text-gray-700 text-xs font-medium px-3 py-1 rounded-full border border-gray-200"
-                >
+                <span key={genero.id} className="bg-gray-100 text-gray-700 text-xs font-medium px-3 py-1 rounded-full border border-gray-200">
                   {genero.name}
                 </span>
               ))}
@@ -125,18 +111,16 @@ export default async function PaginaFilme({ params }: Props) {
             <p className="text-gray-400 italic">Sinopse não disponível em português.</p>
           )}
 
-          <div className="flex flex-wrap gap-3 mt-2">
-            <BotaoFavorito filme={filme} />
-            <Link
-              href="/"
-              className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm text-gray-600 border border-gray-200 hover:border-gray-400 transition-colors bg-white"
-            >
-              ← Voltar ao catálogo
-            </Link>
-          </div>
+          <BotoesListas filme={filme} />
+
+          <Link href="/" className="self-start flex items-center gap-1 px-4 py-2 rounded-xl text-sm text-gray-600 border border-gray-200 hover:border-gray-400 transition-colors bg-white mt-1">
+            ← Voltar ao catálogo
+          </Link>
         </div>
       </div>
 
+      <TrailerFilme filmeId={Number(movieId)} titulo={filme.title} />
+      <ElencoFilme filmeId={Number(movieId)} />
       <FilmesSimilares filmeId={Number(movieId)} />
     </main>
   )
