@@ -17,17 +17,20 @@ async function buscarGeneros(): Promise<Genero[]> {
   } catch { return [] }
 }
 
-async function buscarFilmes(endpoint: string, page: number, generoId?: string, ano?: string): Promise<{ filmes: Filme[], totalPaginas: number }> {
+async function buscarFilmes(
+  endpoint: string,
+  page: number,
+  generoId?: string,
+  ano?: string
+): Promise<{ filmes: Filme[]; totalPaginas: number }> {
   try {
     let url: string
 
-    // Quando há filtro, usa o endpoint /discover que suporta filtros corretamente
     if (generoId || ano) {
       const sortMap: Record<string, string> = {
         now_playing: 'popularity.desc',
         popular: 'popularity.desc',
         top_rated: 'vote_average.desc',
-        upcoming: 'primary_release_date.desc',
       }
       const sort = sortMap[endpoint] ?? 'popularity.desc'
       url = `https://api.themoviedb.org/3/discover/movie?api_key=${process.env.NEXT_PUBLIC_TMDB_KEY}&language=pt-BR&page=${page}&sort_by=${sort}`
@@ -41,8 +44,20 @@ async function buscarFilmes(endpoint: string, page: number, generoId?: string, a
     const res = await fetch(url, { next: { revalidate: 300 } })
     if (!res.ok) return { filmes: [], totalPaginas: 1 }
     const dados = await res.json()
+
+    // Pega 25 filmes (5 fileiras × 5 colunas)
+    // API retorna 20 por página — se precisar de 25 busca página seguinte também
+    let filmes: Filme[] = dados.results ?? []
+    if (filmes.length < 25) {
+      const res2 = await fetch(url.replace(`&page=${page}`, `&page=${page + 1}`), { next: { revalidate: 300 } })
+      if (res2.ok) {
+        const dados2 = await res2.json()
+        filmes = [...filmes, ...(dados2.results ?? [])]
+      }
+    }
+
     return {
-      filmes: dados.results?.slice(0, 10) ?? [],
+      filmes: filmes.slice(0, 25),
       totalPaginas: Math.min(dados.total_pages ?? 1, 20),
     }
   } catch { return { filmes: [], totalPaginas: 1 } }
@@ -68,6 +83,12 @@ async function ConteudoHome({ searchParams }: HomeProps) {
 
   const anos = Array.from({ length: 35 }, (_, i) => String(new Date().getFullYear() - i))
 
+  const Grid = ({ filmes }: { filmes: Filme[] }) => (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-5">
+      {filmes.map(f => <CardFilme key={f.id} filme={f} />)}
+    </div>
+  )
+
   return (
     <>
       <FiltrosHome
@@ -78,7 +99,6 @@ async function ConteudoHome({ searchParams }: HomeProps) {
         paginaAtiva={pagina}
       />
 
-      {/* Se filtro ativo, mostra uma seção só com paginação */}
       {temFiltro ? (
         <section className="mb-10">
           <h2 className="text-xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
@@ -87,51 +107,38 @@ async function ConteudoHome({ searchParams }: HomeProps) {
           <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
             {genero && generos.find(g => String(g.id) === genero)?.name}
             {genero && ano && ' · '}
-            {ano && ano}
+            {ano}
           </p>
-
           {secCartaz.filmes.length === 0 ? (
             <p className="py-10 text-center" style={{ color: 'var(--text-secondary)' }}>
               Nenhum filme encontrado com esses filtros.
             </p>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-5">
-              {secCartaz.filmes.map(f => <CardFilme key={f.id} filme={f} />)}
-            </div>
+            <Grid filmes={secCartaz.filmes} />
           )}
-
           <Paginacao pagina={pagina} total={secCartaz.totalPaginas} genero={genero} ano={ano} />
         </section>
       ) : (
         <>
-          {/* Em cartaz */}
           {secCartaz.filmes.length > 0 && (
             <section className="mb-10">
               <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>🎬 Em cartaz</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-5">
-                {secCartaz.filmes.map(f => <CardFilme key={f.id} filme={f} />)}
-              </div>
+              <Grid filmes={secCartaz.filmes} />
               <Paginacao pagina={pagina} total={secCartaz.totalPaginas} genero={genero} ano={ano} />
             </section>
           )}
 
-          {/* Mais populares */}
           {secPopular.filmes.length > 0 && (
             <section className="mb-10">
               <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>🔥 Mais populares</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-5">
-                {secPopular.filmes.map(f => <CardFilme key={f.id} filme={f} />)}
-              </div>
+              <Grid filmes={secPopular.filmes} />
             </section>
           )}
 
-          {/* Mais bem avaliados */}
           {secTop.filmes.length > 0 && (
             <section className="mb-10">
               <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>⭐ Mais bem avaliados</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-5">
-                {secTop.filmes.map(f => <CardFilme key={f.id} filme={f} />)}
-              </div>
+              <Grid filmes={secTop.filmes} />
             </section>
           )}
         </>
