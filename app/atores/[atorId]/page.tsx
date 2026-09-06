@@ -46,10 +46,10 @@ export default async function PaginaAtor({ params }: Props) {
     : null
 
   return (
-    <main className="max-w-5xl mx-auto px-6 py-10">
+    <main className="max-w-5xl mx-auto px-4 md:px-6 py-8">
       {/* Perfil */}
-      <div className="flex flex-col md:flex-row gap-8 mb-10">
-        <div className="relative w-40 h-56 flex-shrink-0 rounded-2xl overflow-hidden shadow-lg bg-gray-200">
+      <div className="flex flex-col sm:flex-row gap-6 mb-10">
+        <div className="relative w-36 h-52 sm:w-40 sm:h-56 flex-shrink-0 rounded-2xl overflow-hidden shadow-lg bg-gray-200 mx-auto sm:mx-0">
           {urlFoto ? (
             <Image src={urlFoto} alt={ator.name} fill sizes="160px" className="object-cover" />
           ) : (
@@ -57,9 +57,11 @@ export default async function PaginaAtor({ params }: Props) {
           )}
         </div>
 
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{ator.name}</h1>
-          <div className="flex flex-wrap gap-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <div className="flex flex-col gap-2 text-center sm:text-left">
+          <h1 className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>
+            {ator.name}
+          </h1>
+          <div className="flex flex-wrap justify-center sm:justify-start gap-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
             {ator.known_for_department && (
               <span className="px-3 py-1 rounded-full border text-xs"
                 style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
@@ -69,37 +71,38 @@ export default async function PaginaAtor({ params }: Props) {
             {ator.birthday && (
               <span>🎂 {new Date(ator.birthday).toLocaleDateString('pt-BR')}{idade ? ` (${idade} anos)` : ''}</span>
             )}
-            {ator.place_of_birth && <span>📍 {ator.place_of_birth}</span>}
+            {ator.place_of_birth && <span className="hidden md:inline">📍 {ator.place_of_birth}</span>}
           </div>
-
           {ator.biography && (
-            <p className="text-sm leading-relaxed mt-2 max-w-2xl line-clamp-5" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-sm leading-relaxed mt-1 max-w-2xl line-clamp-4 sm:line-clamp-5" style={{ color: 'var(--text-secondary)' }}>
               {ator.biography}
             </p>
           )}
-
-          <Link href="/atores" className="self-start text-sm text-blue-500 hover:underline mt-2">
+          <Link href="/atores" className="self-center sm:self-start text-sm text-blue-500 hover:underline mt-1">
             ← Voltar à busca
           </Link>
         </div>
       </div>
 
-      {/* Filmografia com cards alinhados */}
+      {/* Filmografia — cards com altura uniforme via grid + flex */}
       <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Filmografia</h2>
       {filmes.length === 0 ? (
         <p style={{ color: 'var(--text-secondary)' }}>Nenhum filme encontrado.</p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4 items-start">
           {filmes.map((filme: any) => (
             <Link key={filme.id} href={`/filmes/${filme.id}`} className="group block">
-              <div className="rounded-xl overflow-hidden border shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 flex flex-col h-full"
+              {/* Card com flex-col e altura mínima fixa no rodapé */}
+              <div className="rounded-xl overflow-hidden border shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 flex flex-col"
                 style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+
+                {/* Poster — aspect-ratio fixo garante mesma altura */}
                 <div className="relative w-full aspect-[2/3] bg-gray-200 flex-shrink-0">
                   <Image
                     src={`https://image.tmdb.org/t/p/w300${filme.poster_path}`}
                     alt={filme.title}
                     fill
-                    sizes="(max-width: 640px) 50vw, 16vw"
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw"
                     className="object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                   {filme.vote_average > 0 && (
@@ -108,10 +111,16 @@ export default async function PaginaAtor({ params }: Props) {
                     </div>
                   )}
                 </div>
-                <div className="p-2 flex flex-col justify-between" style={{ minHeight: '60px' }}>
-                  <p className="text-xs font-semibold line-clamp-2 leading-tight" style={{ color: 'var(--text-primary)' }}>{filme.title}</p>
+
+                {/* Info — altura fixa para alinhar todas as caixas */}
+                <div className="p-2 flex flex-col gap-0.5" style={{ minHeight: '58px' }}>
+                  <p className="text-xs font-semibold line-clamp-2 leading-tight" style={{ color: 'var(--text-primary)' }}>
+                    {filme.title}
+                  </p>
                   {filme.character && (
-                    <p className="text-xs mt-0.5 line-clamp-1" style={{ color: 'var(--text-secondary)' }}>como {filme.character}</p>
+                    <p className="text-xs line-clamp-1" style={{ color: 'var(--text-secondary)' }}>
+                      como {filme.character}
+                    </p>
                   )}
                 </div>
               </div>
