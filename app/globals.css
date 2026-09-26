@@ -1,25 +1,39 @@
 @import "tailwindcss";
 
 :root {
-  --bg-primary: #f9fafb;
+  --bg-primary: #f3f4f6;
   --bg-card: #ffffff;
   --text-primary: #111827;
-  --text-secondary: #6b7280;
+  --text-secondary: #4b5563;
   --border-color: #e5e7eb;
   --nav-bg: #111827;
+  --img-bg: #d1d5db;
 }
 
 .dark {
-  --bg-primary: #0f0f0f;
-  --bg-card: #1a1a1a;
-  --text-primary: #f9fafb;
-  --text-secondary: #9ca3af;
-  --border-color: #2d2d2d;
+  --bg-primary: #0d0d0d;
+  --bg-card: #1c1c1e;
+  --text-primary: #f5f5f7;
+  --text-secondary: #a1a1aa;
+  --border-color: #2e2e30;
   --nav-bg: #000000;
+  --img-bg: #2a2a2e;
 }
 
-body {
+html, body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  transition: background-color 0.2s, color 0.2s;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Garante que imagens quebradas não apareçam com alt text vazando */
+img {
+  font-size: 0;
+  background-color: var(--img-bg);
+}
+
+/* Placeholder cinza enquanto imagem carrega */
+img:not([src]),
+img[src=""] {
+  visibility: hidden;
 }
