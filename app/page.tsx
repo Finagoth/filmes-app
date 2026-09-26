@@ -2,14 +2,19 @@ import { Filme, Genero } from '@/types/tmdb'
 import CardFilme from '@/components/CardFilme'
 import FiltrosHome from '@/components/FiltrosHome'
 
-export const dynamic = 'force-dynamic'
+// Revalida a cada 5 minutos em vez de force-dynamic
+// Isso evita o timeout do serverless
+export const revalidate = 300
 
 const KEY = process.env.NEXT_PUBLIC_TMDB_KEY
 const BASE = 'https://api.themoviedb.org/3'
 
 async function fetchJson(url: string) {
   try {
-    const res = await fetch(url, { cache: 'no-store' })
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 8000)
+    const res = await fetch(url, { signal: controller.signal, next: { revalidate: 300 } })
+    clearTimeout(timer)
     if (!res.ok) return null
     return res.json()
   } catch {
@@ -46,12 +51,13 @@ export default async function Home({ searchParams }: PageProps) {
   const ano = String(sp.ano ?? '')
   const temFiltro = !!(genero || ano)
 
-  const [generos, cartaz, popular, topRated] = await Promise.all([
-    buscarGeneros(),
-    buscarSecao('now_playing', pagina, genero, ano),
-    buscarSecao('popular', pagina, genero, ano),
-    buscarSecao('top_rated', 1, genero, ano),
-  ])
+  // Busca sequencial para evitar sobrecarga: gêneros primeiro, depois filmes
+  const generos = await buscarGeneros()
+
+  // Só busca as seções necessárias
+  const cartaz = await buscarSecao('now_playing', pagina, genero, ano)
+  const popular = temFiltro ? [] : await buscarSecao('popular', pagina, '', '')
+  const topRated = temFiltro ? [] : await buscarSecao('top_rated', 1, '', '')
 
   const anos = Array.from({ length: 35 }, (_, i) => String(new Date().getFullYear() - i))
 
@@ -63,12 +69,34 @@ export default async function Home({ searchParams }: PageProps) {
     return `/?${ps}`
   }
 
+  const Grid = ({ filmes }: { filmes: Filme[] }) => (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-5">
+      {filmes.map(f => <CardFilme key={f.id} filme={f} />)}
+    </div>
+  )
+
+  const Paginacao = ({ p }: { p: number }) => (
+    <div className="flex justify-center gap-3 mt-6">
+      {p > 1 && (
+        <a href={buildUrl(p - 1)} className="px-4 py-2 rounded-xl text-sm border transition-colors"
+          style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}>
+          ← Anterior
+        </a>
+      )}
+      <span className="px-4 py-2 rounded-xl text-sm"
+        style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)' }}>
+        Página {p}
+      </span>
+      <a href={buildUrl(p + 1)} className="px-4 py-2 rounded-xl text-sm bg-gray-900 text-white hover:bg-gray-700 transition-colors">
+        Próxima →
+      </a>
+    </div>
+  )
+
   return (
     <main className="max-w-7xl mx-auto px-4 md:px-6 py-8">
       <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
-          FilmesApp
-        </h1>
+        <h1 className="text-2xl md:text-3xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>FilmesApp</h1>
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
           Descubra filmes, crie suas listas e acompanhe o que assistiu
         </p>
@@ -78,75 +106,35 @@ export default async function Home({ searchParams }: PageProps) {
 
       {temFiltro ? (
         <section className="mb-10">
-          <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
-            🎬 Resultados filtrados
-          </h2>
+          <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>🎬 Resultados filtrados</h2>
           <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
             {genero && generos.find(g => String(g.id) === genero)?.name}
             {genero && ano && ' · '}{ano}
           </p>
-          {cartaz.length === 0 ? (
-            <p className="py-10 text-center" style={{ color: 'var(--text-secondary)' }}>
-              Nenhum filme encontrado com esses filtros.
-            </p>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-5">
-              {cartaz.map(f => <CardFilme key={f.id} filme={f} />)}
-            </div>
-          )}
-          <div className="flex justify-center gap-3 mt-6">
-            {pagina > 1 && (
-              <a href={buildUrl(pagina - 1)} className="px-4 py-2 rounded-xl text-sm border transition-colors"
-                style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}>
-                ← Anterior
-              </a>
-            )}
-            <span className="px-4 py-2 rounded-xl text-sm" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)' }}>
-              Página {pagina}
-            </span>
-            <a href={buildUrl(pagina + 1)} className="px-4 py-2 rounded-xl text-sm bg-gray-900 text-white hover:bg-gray-700 transition-colors">
-              Próxima →
-            </a>
-          </div>
+          {cartaz.length === 0
+            ? <p className="py-10 text-center" style={{ color: 'var(--text-secondary)' }}>Nenhum filme encontrado.</p>
+            : <><Grid filmes={cartaz} /><Paginacao p={pagina} /></>
+          }
         </section>
       ) : (
         <>
           {cartaz.length > 0 && (
             <section className="mb-10">
               <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>🎬 Em cartaz</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-5">
-                {cartaz.map(f => <CardFilme key={f.id} filme={f} />)}
-              </div>
-              <div className="flex justify-center gap-3 mt-6">
-                {pagina > 1 && (
-                  <a href={buildUrl(pagina - 1)} className="px-4 py-2 rounded-xl text-sm border transition-colors"
-                    style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}>
-                    ← Anterior
-                  </a>
-                )}
-                <span className="px-4 py-2 rounded-xl text-sm" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)' }}>
-                  Página {pagina}
-                </span>
-                <a href={buildUrl(pagina + 1)} className="px-4 py-2 rounded-xl text-sm bg-gray-900 text-white hover:bg-gray-700 transition-colors">
-                  Próxima →
-                </a>
-              </div>
+              <Grid filmes={cartaz} />
+              <Paginacao p={pagina} />
             </section>
           )}
           {popular.length > 0 && (
             <section className="mb-10">
               <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>🔥 Mais populares</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-5">
-                {popular.map(f => <CardFilme key={f.id} filme={f} />)}
-              </div>
+              <Grid filmes={popular} />
             </section>
           )}
           {topRated.length > 0 && (
             <section className="mb-10">
               <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>⭐ Mais bem avaliados</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-5">
-                {topRated.map(f => <CardFilme key={f.id} filme={f} />)}
-              </div>
+              <Grid filmes={topRated} />
             </section>
           )}
         </>
