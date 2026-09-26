@@ -25,15 +25,3 @@ html, body {
   color: var(--text-primary);
   transition: background-color 0.2s ease, color 0.2s ease;
 }
-
-/* Garante que imagens quebradas não apareçam com alt text vazando */
-img {
-  font-size: 0;
-  background-color: var(--img-bg);
-}
-
-/* Placeholder cinza enquanto imagem carrega */
-img:not([src]),
-img[src=""] {
-  visibility: hidden;
-}
