@@ -13,10 +13,8 @@ async function buscarSimilares(id: number): Promise<Filme[]> {
     )
     if (!res.ok) return []
     const dados: RespostaTMDB = await res.json()
-    return dados.results.slice(0, 6)
-  } catch {
-    return []
-  }
+    return dados.results.filter(f => f.poster_path).slice(0, 6)
+  } catch { return [] }
 }
 
 export default async function FilmesSimilares({ filmeId }: Props) {
@@ -24,32 +22,40 @@ export default async function FilmesSimilares({ filmeId }: Props) {
   if (similares.length === 0) return null
 
   return (
-    <section className="max-w-4xl mx-auto px-6 pb-12">
-      <h2 className="text-xl font-bold text-gray-900 mb-4">Você também pode gostar</h2>
+    <section className="max-w-4xl mx-auto px-4 md:px-6 pb-12">
+      <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+        Você também pode gostar
+      </h2>
       <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-        {similares.map(filme => {
-          const urlPoster = filme.poster_path
-            ? `https://image.tmdb.org/t/p/w300${filme.poster_path}`
-            : null
-          return (
-            <Link key={filme.id} href={`/filmes/${filme.id}`} className="group block">
-              <div className="rounded-lg overflow-hidden bg-gray-100 aspect-[2/3] relative">
-                {urlPoster ? (
-                  <Image
-                    src={urlPoster}
-                    alt={filme.title}
-                    fill
-                    sizes="(max-width: 768px) 33vw, 16vw"
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">Sem imagem</div>
-                )}
+        {similares.map(filme => (
+          <Link key={filme.id} href={`/filmes/${filme.id}`} className="group block">
+            <div
+              className="rounded-lg overflow-hidden border shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 flex flex-col"
+              style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
+            >
+              <div
+                className="relative w-full flex-shrink-0"
+                style={{ aspectRatio: '2/3', backgroundColor: 'var(--img-bg)' }}
+              >
+                <Image
+                  src={`https://image.tmdb.org/t/p/w300${filme.poster_path}`}
+                  alt={filme.title}
+                  fill
+                  sizes="(max-width: 768px) 33vw, 16vw"
+                  className="object-cover group-hover:scale-105 transition-transform duration-300"
+                />
               </div>
-              <p className="text-xs text-gray-700 mt-1 leading-tight line-clamp-2 font-medium">{filme.title}</p>
-            </Link>
-          )
-        })}
+              <div className="p-1.5" style={{ minHeight: '40px' }}>
+                <p
+                  className="text-xs font-medium line-clamp-2 leading-tight"
+                  style={{ color: 'var(--text-primary)' }}
+                >
+                  {filme.title}
+                </p>
+              </div>
+            </div>
+          </Link>
+        ))}
       </div>
     </section>
   )
