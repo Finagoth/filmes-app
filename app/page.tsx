@@ -9,7 +9,8 @@ export const dynamic = 'force-dynamic'
 async function buscarGeneros(): Promise<Genero[]> {
   try {
     const res = await fetch(
-      `https://api.themoviedb.org/3/genre/movie/list?api_key=${process.env.NEXT_PUBLIC_TMDB_KEY}&language=pt-BR`
+      `https://api.themoviedb.org/3/genre/movie/list?api_key=${process.env.NEXT_PUBLIC_TMDB_KEY}&language=pt-BR`,
+      { next: { revalidate: 3600 } }
     )
     if (!res.ok) return []
     const dados = await res.json()
@@ -17,50 +18,59 @@ async function buscarGeneros(): Promise<Genero[]> {
   } catch { return [] }
 }
 
-async function buscarFilmes(
-  endpoint: string,
-  page: number,
-  generoId?: string,
-  ano?: string
-): Promise<{ filmes: Filme[]; totalPaginas: number }> {
+// Busca uma página simples (20 filmes)
+async function buscarPagina(url: string): Promise<{ filmes: Filme[]; totalPaginas: number }> {
   try {
-    let url: string
-
-    if (generoId || ano) {
-      const sortMap: Record<string, string> = {
-        now_playing: 'popularity.desc',
-        popular: 'popularity.desc',
-        top_rated: 'vote_average.desc',
-      }
-      const sort = sortMap[endpoint] ?? 'popularity.desc'
-      url = `https://api.themoviedb.org/3/discover/movie?api_key=${process.env.NEXT_PUBLIC_TMDB_KEY}&language=pt-BR&page=${page}&sort_by=${sort}`
-      if (generoId) url += `&with_genres=${generoId}`
-      if (ano) url += `&primary_release_year=${ano}`
-      if (endpoint === 'top_rated') url += '&vote_count.gte=200'
-    } else {
-      url = `https://api.themoviedb.org/3/movie/${endpoint}?api_key=${process.env.NEXT_PUBLIC_TMDB_KEY}&language=pt-BR&page=${page}`
-    }
-
     const res = await fetch(url, { next: { revalidate: 300 } })
     if (!res.ok) return { filmes: [], totalPaginas: 1 }
     const dados = await res.json()
-
-    // Pega 25 filmes (5 fileiras × 5 colunas)
-    // API retorna 20 por página — se precisar de 25 busca página seguinte também
-    let filmes: Filme[] = dados.results ?? []
-    if (filmes.length < 25) {
-      const res2 = await fetch(url.replace(`&page=${page}`, `&page=${page + 1}`), { next: { revalidate: 300 } })
-      if (res2.ok) {
-        const dados2 = await res2.json()
-        filmes = [...filmes, ...(dados2.results ?? [])]
-      }
-    }
-
     return {
-      filmes: filmes.slice(0, 25),
+      filmes: dados.results ?? [],
       totalPaginas: Math.min(dados.total_pages ?? 1, 20),
     }
   } catch { return { filmes: [], totalPaginas: 1 } }
+}
+
+// Busca 25 filmes buscando p e p+1 e juntando
+async function buscarFilmes(
+  endpoint: string,
+  page: number,
+  generoId: string,
+  ano: string
+): Promise<{ filmes: Filme[]; totalPaginas: number }> {
+  const base = 'https://api.themoviedb.org/3'
+  const key = process.env.NEXT_PUBLIC_TMDB_KEY
+  const lang = 'pt-BR'
+
+  let url1: string
+  let url2: string
+
+  if (generoId || ano) {
+    const sortMap: Record<string, string> = {
+      now_playing: 'popularity.desc',
+      popular: 'popularity.desc',
+      top_rated: 'vote_average.desc',
+    }
+    const sort = sortMap[endpoint] ?? 'popularity.desc'
+    const extra = endpoint === 'top_rated' ? '&vote_count.gte=200' : ''
+    const genreParam = generoId ? `&with_genres=${generoId}` : ''
+    const yearParam = ano ? `&primary_release_year=${ano}` : ''
+    url1 = `${base}/discover/movie?api_key=${key}&language=${lang}&page=${page}&sort_by=${sort}${genreParam}${yearParam}${extra}`
+    url2 = `${base}/discover/movie?api_key=${key}&language=${lang}&page=${page + 1}&sort_by=${sort}${genreParam}${yearParam}${extra}`
+  } else {
+    url1 = `${base}/movie/${endpoint}?api_key=${key}&language=${lang}&page=${page}`
+    url2 = `${base}/movie/${endpoint}?api_key=${key}&language=${lang}&page=${page + 1}`
+  }
+
+  const [r1, r2] = await Promise.all([
+    buscarPagina(url1),
+    buscarPagina(url2),
+  ])
+
+  return {
+    filmes: [...r1.filmes, ...r2.filmes].slice(0, 25),
+    totalPaginas: r1.totalPaginas,
+  }
 }
 
 interface HomeProps {
@@ -127,14 +137,12 @@ async function ConteudoHome({ searchParams }: HomeProps) {
               <Paginacao pagina={pagina} total={secCartaz.totalPaginas} genero={genero} ano={ano} />
             </section>
           )}
-
           {secPopular.filmes.length > 0 && (
             <section className="mb-10">
               <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>🔥 Mais populares</h2>
               <Grid filmes={secPopular.filmes} />
             </section>
           )}
-
           {secTop.filmes.length > 0 && (
             <section className="mb-10">
               <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>⭐ Mais bem avaliados</h2>
@@ -147,7 +155,9 @@ async function ConteudoHome({ searchParams }: HomeProps) {
   )
 }
 
-function Paginacao({ pagina, total, genero, ano }: { pagina: number; total: number; genero: string; ano: string }) {
+function Paginacao({ pagina, total, genero, ano }: {
+  pagina: number; total: number; genero: string; ano: string
+}) {
   if (total <= 1) return null
 
   function buildUrl(p: number) {
@@ -185,7 +195,9 @@ export default function Home({ searchParams }: HomeProps) {
   return (
     <main className="max-w-7xl mx-auto px-4 md:px-6 py-8">
       <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>FilmesApp</h1>
+        <h1 className="text-2xl md:text-3xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+          FilmesApp
+        </h1>
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
           Descubra filmes, crie suas listas e acompanhe o que assistiu
         </p>
